@@ -10,8 +10,7 @@ from pathlib import Path
 # ─────────────────────────────────────────────
 #  PATHS
 # ─────────────────────────────────────────────
-SCRIPT_DIR   = Path(__file__).parent
-DEFAULT_PATH = Path(r"C:\Users\kanta\Downloads\Online Retail.csv")
+SCRIPT_DIR = Path(__file__).parent
 
 # ─────────────────────────────────────────────
 #  PAGE CONFIG
@@ -92,10 +91,6 @@ REQUIRED_COLS = {"InvoiceNo","StockCode","Description","Quantity",
 # ─────────────────────────────────────────────
 #  DATA LOADING & CLEANING
 # ─────────────────────────────────────────────
-@st.cache_data(show_spinner="Loading Online Retail dataset…")
-def load_default() -> pd.DataFrame:
-    df = read_csv_smart(DEFAULT_PATH)
-    return clean_df(df)
 
 def read_csv_smart(src) -> pd.DataFrame:
     """Try utf-8 → latin-1 → cp1252 to handle £ and other non-ASCII bytes."""
@@ -151,49 +146,148 @@ with st.sidebar:
         help="Required: InvoiceNo, StockCode, Description, Quantity, InvoiceDate, UnitPrice, CustomerID, Country",
     )
 
+    df_raw = None
     if uploaded:
         try:
             df_raw = load_uploaded(uploaded.read(), uploaded.name)
             miss = REQUIRED_COLS - set(df_raw.columns)
             if miss:
-                st.error(f"❌ Missing: {', '.join(sorted(miss))}")
-                df_raw = load_default()
+                st.error(f"❌ Missing columns: {', '.join(sorted(miss))}")
+                df_raw = None
             else:
-                st.success(f"✅ {uploaded.name} — {len(df_raw):,} rows")
+                st.success(f"✅ {uploaded.name} — {len(df_raw):,} rows loaded")
         except Exception as e:
-            st.error(f"❌ {e}")
-            df_raw = load_default()
+            st.error(f"❌ Failed to read file: {e}")
+            df_raw = None
     else:
-        df_raw = load_default()
-        st.info("🛒 Using Online Retail demo dataset")
+        st.info("� Please upload the Online Retail dataset to begin.")
 
-    with st.expander("🔍 Preview data"):
-        st.dataframe(df_raw.head(8), use_container_width=True)
-        st.download_button(
-            "⬇️ Download cleaned CSV",
-            df_raw.to_csv(index=False).encode(),
-            "online_retail_clean.csv","text/csv",
-        )
+    if df_raw is not None:
+        with st.expander("🔍 Preview data"):
+            st.dataframe(df_raw.head(8), use_container_width=True)
+            st.download_button(
+                "⬇️ Download cleaned CSV",
+                df_raw.to_csv(index=False).encode(),
+                "online_retail_clean.csv", "text/csv",
+            )
 
     st.divider()
-    st.markdown("### 🎛️ Filters")
+    if df_raw is not None:
+        st.markdown("### 🎛️ Filters")
 
-    all_countries = sorted(df_raw["Country"].unique())
-    top_countries = df_raw["Country"].value_counts().head(10).index.tolist()
-    sel_countries = st.multiselect("Countries", all_countries, default=top_countries)
+        all_countries = sorted(df_raw["Country"].unique())
+        top_countries = df_raw["Country"].value_counts().head(10).index.tolist()
+        sel_countries = st.multiselect("Countries", all_countries, default=top_countries)
 
-    d_min = df_raw["Date"].min()
-    d_max = df_raw["Date"].max()
-    date_range = st.date_input("Date Range", value=(d_min, d_max),
-                               min_value=d_min, max_value=d_max)
+        d_min = df_raw["Date"].min()
+        d_max = df_raw["Date"].max()
+        date_range = st.date_input("Date Range", value=(d_min, d_max),
+                                   min_value=d_min, max_value=d_max)
 
-    n_clusters = st.slider("RFM Clusters (k)", 2, 8, 4)
+        n_clusters = st.slider("RFM Clusters (k)", 2, 8, 4)
 
     st.divider()
     st.info("E-commerce RFM Analytics powered by KMeans clustering")
 
 # ─────────────────────────────────────────────
-#  APPLY FILTERS
+#  UPLOAD LANDING PAGE  (shown when no data)
+# ─────────────────────────────────────────────
+if df_raw is None:
+    st.markdown("""
+    <style>
+    .upload-hero {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 62vh; text-align: center; padding: 40px 20px;
+    }
+    .upload-icon { font-size: 80px; line-height: 1; margin-bottom: 20px;
+                   animation: float 3s ease-in-out infinite; }
+    @keyframes float {
+        0%,100% { transform: translateY(0); }
+        50%      { transform: translateY(-12px); }
+    }
+    .upload-title {
+        font-size: 32px; font-weight: 800; color: #1a1d3a;
+        margin-bottom: 10px; line-height: 1.25;
+    }
+    .upload-sub {
+        font-size: 15px; color: #8b90b8; max-width: 520px;
+        margin: 0 auto 28px; line-height: 1.6;
+    }
+    .upload-box {
+        background: #fff;
+        border: 2.5px dashed #a8b8fb;
+        border-radius: 20px;
+        padding: 36px 48px;
+        max-width: 540px;
+        width: 100%;
+        margin: 0 auto 30px;
+        box-shadow: 0 4px 24px rgba(46,65,212,0.08);
+        transition: border-color .2s, box-shadow .2s;
+    }
+    .upload-box:hover {
+        border-color: #2e41d4;
+        box-shadow: 0 8px 32px rgba(46,65,212,0.15);
+    }
+    .upload-box-title {
+        font-size: 17px; font-weight: 700; color: #1a1d3a; margin-bottom: 8px;
+    }
+    .upload-box-sub  {
+        font-size: 13px; color: #8b90b8; margin-bottom: 0;
+    }
+    .upload-steps {
+        display: flex; gap: 16px; justify-content: center;
+        flex-wrap: wrap; max-width: 640px; margin: 0 auto;
+    }
+    .step-chip {
+        background: #e8f0fe; border-radius: 12px; padding: 10px 16px;
+        font-size: 13px; font-weight: 500; color: #2e41d4;
+        display: flex; align-items: center; gap: 7px;
+    }
+    .req-cols {
+        font-size: 12px; color: #b0b4d0; margin-top: 16px;
+        font-family: monospace; line-height: 1.8;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="upload-hero">
+        <div class="upload-icon">🛒</div>
+        <div class="upload-title">Online Retail Analytics Dashboard</div>
+        <div class="upload-sub">
+            Unlock powerful RFM segmentation, customer intelligence, and
+            e-commerce trend analysis — just upload your dataset to get started.
+        </div>
+        <div class="upload-box">
+            <div class="upload-box-title">📂 Upload the Online Retail dataset</div>
+            <div class="upload-box-sub">
+                Use the <strong>sidebar on the left</strong> to upload<br>
+                <code style="background:#eef0f8;padding:2px 7px;border-radius:6px;font-size:12px">
+                Online Retail.csv
+                </code>
+                &nbsp;(or .xlsx / .xls)
+            </div>
+            <div class="req-cols">
+                Required columns:<br>
+                InvoiceNo &nbsp;·&nbsp; StockCode &nbsp;·&nbsp; Description &nbsp;·&nbsp;
+                Quantity &nbsp;·&nbsp; InvoiceDate<br>
+                UnitPrice &nbsp;·&nbsp; CustomerID &nbsp;·&nbsp; Country
+            </div>
+        </div>
+        <div class="upload-steps">
+            <div class="step-chip">📊 RFM Segmentation</div>
+            <div class="step-chip">🌍 Country Analysis</div>
+            <div class="step-chip">📈 Revenue Trends</div>
+            <div class="step-chip">🔎 Customer Lookup</div>
+            <div class="step-chip">🤖 KMeans Clustering</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.stop()
+
+# ─────────────────────────────────────────────
+#  APPLY FILTERS  (only reached once data loaded)
 # ─────────────────────────────────────────────
 d1, d2 = (date_range[0], date_range[1]) if len(date_range) == 2 else (d_min, d_max)
 
@@ -204,7 +298,7 @@ df = df_raw[
 ].copy()
 
 if df.empty:
-    st.warning("⚠️ No data after filters. Adjust the sidebar.")
+    st.warning("⚠️ No data matches the current filters. Try adjusting the sidebar.")
     st.stop()
 
 # ─────────────────────────────────────────────
