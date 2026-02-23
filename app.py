@@ -16,8 +16,8 @@ SCRIPT_DIR = Path(__file__).parent
 #  PAGE CONFIG
 # ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="Online Retail Analytics",
-    page_icon="🛒",
+    page_title="Customer Segmentation",
+    page_icon="�",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -199,7 +199,7 @@ if df_raw is not None:
             st.download_button(
                 "⬇️ Download cleaned CSV",
                 df_raw.to_csv(index=False).encode(),
-                "online_retail_clean.csv", "text/csv",
+                "customer_segmentation_clean.csv", "text/csv",
             )
         st.divider()
         st.markdown("### 🎛️ Filters")
@@ -262,10 +262,10 @@ if df_raw is None:
     st.markdown("""
     <div class="lp-wrap">
         <span class="lp-icon">🛒</span>
-        <div class="lp-title">Online Retail Analytics Dashboard</div>
+        <div class="lp-title">Customer Segmentation Dashboard</div>
         <div class="lp-sub">
             Unlock RFM segmentation, customer intelligence &amp; e-commerce trends.
-            Drop your dataset below to get started — no sign-up needed.
+            Upload your transactional dataset below to get started — no sign-up needed.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -276,13 +276,13 @@ if df_raw is None:
         if _err:
             st.error(_err)
         land_file = st.file_uploader(
-            "📂 Drop Online Retail.csv here, or click Browse",
+            "📂 Drop your customer dataset here, or click Browse",
             type=["csv", "xlsx", "xls"],
             key="landing_uploader",
         )
         st.markdown("""
         <div class="upload-hint">
-            Accepts: <b>Online Retail.csv</b> (or .xlsx)<br>
+            Accepts: <b>customer transaction CSV / Excel</b><br>
             Required columns: InvoiceNo · StockCode · Description ·
             Quantity · InvoiceDate · UnitPrice · CustomerID · Country
         </div>
@@ -440,8 +440,8 @@ def kpi_card(col, label, val, sub=""):
 st.markdown(f"""
 <div class='ph'>
   <div>
-    <h1>🛒 Online Retail Analytics Dashboard</h1>
-    <p>RFM Segmentation · E-commerce Trends · Customer Intelligence</p>
+    <h1>� Customer Segmentation Dashboard</h1>
+    <p>RFM Analysis · KMeans Clustering · Customer Intelligence</p>
   </div>
   <div style='text-align:right'>
     <div style='font-size:13px;font-weight:600;color:#1a1d3a'>
@@ -861,8 +861,8 @@ else:
 st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
 st.markdown(
     "<div style='text-align:center;font-size:12px;color:#b0b4d0;padding:8px 0'>"
-    "🛒 Online Retail Analytics Dashboard &nbsp;·&nbsp; "
-    "Dataset: UCI Online Retail &nbsp;·&nbsp; Built with Streamlit & Plotly"
+    "� Customer Segmentation Dashboard &nbsp;·&nbsp; "
+    "RFM Analysis &nbsp;·&nbsp; Built with Streamlit &amp; Plotly"
     "</div>",
     unsafe_allow_html=True,
 )

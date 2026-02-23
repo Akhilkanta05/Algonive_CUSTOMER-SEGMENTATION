@@ -1,4 +1,4 @@
-# 🛍️ Customer Segmentation & Analytics Dashboard
+# 👥 Customer Segmentation Dashboard
 
 An interactive **Streamlit** dashboard for customer segmentation and e-commerce analytics using **RFM Analysis**, **K-Means Clustering**, and rich **Plotly** visualisations.
 
@@ -70,13 +70,14 @@ Then open [http://localhost:8501](http://localhost:8501) in your browser.
 | **NumPy** | Numerical computing |
 | **Plotly** | Interactive charts |
 | **Scikit-learn** | K-Means clustering |
+| **Matplotlib** | Gradient heatmap styling |
 | **OpenPyXL** | Excel file support |
 
 ---
 
 ## 📊 Dataset
 
-The `customers.csv` file contains transactional e-commerce data with fields such as customer ID, invoice date, quantity, and unit price — used to derive RFM metrics.
+Upload any transactional e-commerce CSV/Excel with customer IDs, invoice dates, quantities, and unit prices to derive RFM metrics and automatic customer segments.
 
 ---
 
