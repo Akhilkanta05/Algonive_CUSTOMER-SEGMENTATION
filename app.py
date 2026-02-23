@@ -23,6 +23,13 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────
+#  SESSION STATE  – persist uploaded file across reruns
+# ─────────────────────────────────────────────
+if "_file_bytes" not in st.session_state:
+    st.session_state["_file_bytes"] = None
+    st.session_state["_file_name"]  = None
+
+# ─────────────────────────────────────────────
 #  CSS  –  clean light theme
 # ─────────────────────────────────────────────
 st.markdown("""
@@ -138,31 +145,55 @@ def clean_df(df: pd.DataFrame) -> pd.DataFrame:
 # ─────────────────────────────────────────────
 #  SIDEBAR
 # ─────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  SIDEBAR
+# ─────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 📂 Data Source")
-    uploaded = st.file_uploader(
+    sb_upload = st.file_uploader(
         "Upload Excel / CSV",
-        type=["xlsx","xls","csv"],
+        type=["xlsx", "xls", "csv"],
+        key="sidebar_uploader",
         help="Required: InvoiceNo, StockCode, Description, Quantity, InvoiceDate, UnitPrice, CustomerID, Country",
     )
+    # If a new file arrives via the sidebar, save its bytes to session_state
+    if sb_upload is not None:
+        new_bytes = sb_upload.read()
+        if new_bytes != st.session_state["_file_bytes"]:
+            st.session_state["_file_bytes"] = new_bytes
+            st.session_state["_file_name"]  = sb_upload.name
+    elif st.session_state["_file_bytes"] is None:
+        st.info("📤 Upload your Online Retail file to begin.")
+    st.divider()
+    st.caption("E-commerce RFM Analytics • Powered by KMeans")
 
-    df_raw = None
-    if uploaded:
-        try:
-            df_raw = load_uploaded(uploaded.read(), uploaded.name)
-            miss = REQUIRED_COLS - set(df_raw.columns)
-            if miss:
-                st.error(f"❌ Missing columns: {', '.join(sorted(miss))}")
-                df_raw = None
-            else:
-                st.success(f"✅ {uploaded.name} — {len(df_raw):,} rows loaded")
-        except Exception as e:
-            st.error(f"❌ Failed to read file: {e}")
+# ─────────────────────────────────────────────
+#  LOAD DATA FROM SESSION STATE
+# ─────────────────────────────────────────────
+df_raw = None
+_err   = None
+
+if st.session_state["_file_bytes"] is not None:
+    try:
+        df_raw = load_uploaded(
+            st.session_state["_file_bytes"],
+            st.session_state["_file_name"],
+        )
+        miss = REQUIRED_COLS - set(df_raw.columns)
+        if miss:
+            _err = f"❌ Missing columns: {', '.join(sorted(miss))}"
             df_raw = None
-    else:
-        st.info("� Please upload the Online Retail dataset to begin.")
+    except Exception as e:
+        _err = f"❌ Could not read file: {e}"
+        df_raw = None
 
-    if df_raw is not None:
+# Sidebar extras — preview, filters (only when data is loaded)
+if df_raw is not None:
+    with st.sidebar:
+        if _err:
+            st.error(_err)
+        else:
+            st.success(f"✅ {st.session_state['_file_name']} — {len(df_raw):,} rows")
         with st.expander("🔍 Preview data"):
             st.dataframe(df_raw.head(8), use_container_width=True)
             st.download_button(
@@ -170,117 +201,107 @@ with st.sidebar:
                 df_raw.to_csv(index=False).encode(),
                 "online_retail_clean.csv", "text/csv",
             )
-
-    st.divider()
-    if df_raw is not None:
+        st.divider()
         st.markdown("### 🎛️ Filters")
-
         all_countries = sorted(df_raw["Country"].unique())
         top_countries = df_raw["Country"].value_counts().head(10).index.tolist()
         sel_countries = st.multiselect("Countries", all_countries, default=top_countries)
-
-        d_min = df_raw["Date"].min()
-        d_max = df_raw["Date"].max()
+        d_min      = df_raw["Date"].min()
+        d_max      = df_raw["Date"].max()
         date_range = st.date_input("Date Range", value=(d_min, d_max),
                                    min_value=d_min, max_value=d_max)
-
         n_clusters = st.slider("RFM Clusters (k)", 2, 8, 4)
-
-    st.divider()
-    st.info("E-commerce RFM Analytics powered by KMeans clustering")
+        st.divider()
+        st.caption("E-commerce RFM Analytics • Powered by KMeans")
 
 # ─────────────────────────────────────────────
-#  UPLOAD LANDING PAGE  (shown when no data)
+#  LANDING PAGE  –  shown until a file is uploaded
 # ─────────────────────────────────────────────
 if df_raw is None:
+    # ── Hero CSS ──
     st.markdown("""
     <style>
-    .upload-hero {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        min-height: 62vh; text-align: center; padding: 40px 20px;
+    .lp-wrap  { text-align:center; padding:48px 20px 20px; }
+    .lp-icon  { font-size:78px; line-height:1; margin-bottom:18px;
+                display:block; animation:lp-float 3s ease-in-out infinite; }
+    @keyframes lp-float {
+        0%,100%{ transform:translateY(0); }
+        50%    { transform:translateY(-14px); }
     }
-    .upload-icon { font-size: 80px; line-height: 1; margin-bottom: 20px;
-                   animation: float 3s ease-in-out infinite; }
-    @keyframes float {
-        0%,100% { transform: translateY(0); }
-        50%      { transform: translateY(-12px); }
-    }
-    .upload-title {
-        font-size: 32px; font-weight: 800; color: #1a1d3a;
-        margin-bottom: 10px; line-height: 1.25;
-    }
-    .upload-sub {
-        font-size: 15px; color: #8b90b8; max-width: 520px;
-        margin: 0 auto 28px; line-height: 1.6;
-    }
-    .upload-box {
-        background: #fff;
-        border: 2.5px dashed #a8b8fb;
-        border-radius: 20px;
-        padding: 36px 48px;
-        max-width: 540px;
-        width: 100%;
-        margin: 0 auto 30px;
+    .lp-title { font-size:34px; font-weight:800; color:#1a1d3a;
+                margin-bottom:10px; line-height:1.2; }
+    .lp-sub   { font-size:15px; color:#8b90b8; max-width:500px;
+                margin:0 auto 30px; line-height:1.65; }
+    .lp-chips { display:flex; gap:12px; flex-wrap:wrap;
+                justify-content:center; margin-top:28px; }
+    .lp-chip  { background:#e8f0fe; border-radius:999px; padding:8px 16px;
+                font-size:12px; font-weight:600; color:#2e41d4; }
+    /* Style Streamlit's native file-uploader to look premium */
+    [data-testid="stFileUploader"] section {
+        border: 2.5px dashed #a8b8fb !important;
+        border-radius: 18px !important;
+        background: #fff !important;
         box-shadow: 0 4px 24px rgba(46,65,212,0.08);
         transition: border-color .2s, box-shadow .2s;
     }
-    .upload-box:hover {
-        border-color: #2e41d4;
-        box-shadow: 0 8px 32px rgba(46,65,212,0.15);
+    [data-testid="stFileUploader"] section:hover {
+        border-color: #2e41d4 !important;
+        box-shadow: 0 8px 32px rgba(46,65,212,0.16) !important;
     }
-    .upload-box-title {
-        font-size: 17px; font-weight: 700; color: #1a1d3a; margin-bottom: 8px;
+    [data-testid="stFileUploader"] section > div > span {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: #1a1d3a !important;
     }
-    .upload-box-sub  {
-        font-size: 13px; color: #8b90b8; margin-bottom: 0;
-    }
-    .upload-steps {
-        display: flex; gap: 16px; justify-content: center;
-        flex-wrap: wrap; max-width: 640px; margin: 0 auto;
-    }
-    .step-chip {
-        background: #e8f0fe; border-radius: 12px; padding: 10px 16px;
-        font-size: 13px; font-weight: 500; color: #2e41d4;
-        display: flex; align-items: center; gap: 7px;
-    }
-    .req-cols {
-        font-size: 12px; color: #b0b4d0; margin-top: 16px;
-        font-family: monospace; line-height: 1.8;
-    }
+    .upload-hint { font-size:12px; color:#b0b4d0; margin-top:10px;
+                   font-family:monospace; text-align:center; line-height:1.8; }
     </style>
     """, unsafe_allow_html=True)
 
+    # ── Hero copy ──
     st.markdown("""
-    <div class="upload-hero">
-        <div class="upload-icon">🛒</div>
-        <div class="upload-title">Online Retail Analytics Dashboard</div>
-        <div class="upload-sub">
-            Unlock powerful RFM segmentation, customer intelligence, and
-            e-commerce trend analysis — just upload your dataset to get started.
+    <div class="lp-wrap">
+        <span class="lp-icon">🛒</span>
+        <div class="lp-title">Online Retail Analytics Dashboard</div>
+        <div class="lp-sub">
+            Unlock RFM segmentation, customer intelligence &amp; e-commerce trends.
+            Drop your dataset below to get started — no sign-up needed.
         </div>
-        <div class="upload-box">
-            <div class="upload-box-title">📂 Upload the Online Retail dataset</div>
-            <div class="upload-box-sub">
-                Use the <strong>sidebar on the left</strong> to upload<br>
-                <code style="background:#eef0f8;padding:2px 7px;border-radius:6px;font-size:12px">
-                Online Retail.csv
-                </code>
-                &nbsp;(or .xlsx / .xls)
-            </div>
-            <div class="req-cols">
-                Required columns:<br>
-                InvoiceNo &nbsp;·&nbsp; StockCode &nbsp;·&nbsp; Description &nbsp;·&nbsp;
-                Quantity &nbsp;·&nbsp; InvoiceDate<br>
-                UnitPrice &nbsp;·&nbsp; CustomerID &nbsp;·&nbsp; Country
-            </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── REAL file-uploader, centred ──
+    _, mid, _ = st.columns([1, 2, 1])
+    with mid:
+        if _err:
+            st.error(_err)
+        land_file = st.file_uploader(
+            "📂 Drop Online Retail.csv here, or click Browse",
+            type=["csv", "xlsx", "xls"],
+            key="landing_uploader",
+        )
+        st.markdown("""
+        <div class="upload-hint">
+            Accepts: <b>Online Retail.csv</b> (or .xlsx)<br>
+            Required columns: InvoiceNo · StockCode · Description ·
+            Quantity · InvoiceDate · UnitPrice · CustomerID · Country
         </div>
-        <div class="upload-steps">
-            <div class="step-chip">📊 RFM Segmentation</div>
-            <div class="step-chip">🌍 Country Analysis</div>
-            <div class="step-chip">📈 Revenue Trends</div>
-            <div class="step-chip">🔎 Customer Lookup</div>
-            <div class="step-chip">🤖 KMeans Clustering</div>
-        </div>
+        """, unsafe_allow_html=True)
+
+        if land_file is not None:
+            st.session_state["_file_bytes"] = land_file.read()
+            st.session_state["_file_name"]  = land_file.name
+            st.rerun()
+
+    # ── Feature chips ──
+    st.markdown("""
+    <div class="lp-chips">
+        <span class="lp-chip">📊 RFM Segmentation</span>
+        <span class="lp-chip">🌍 Country Analysis</span>
+        <span class="lp-chip">📈 Revenue Trends</span>
+        <span class="lp-chip">🔎 Customer Lookup</span>
+        <span class="lp-chip">🤖 KMeans Clustering</span>
+        <span class="lp-chip">🗂️ Interactive Filters</span>
     </div>
     """, unsafe_allow_html=True)
 
