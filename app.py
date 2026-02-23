@@ -302,6 +302,14 @@ def fmt_date(d):
         return d.strftime("%b %d, %Y").replace(" 0"," ")
     return str(d)
 
+def safe_gradient(styler, subset, cmap="Blues"):
+    """Apply background_gradient only when matplotlib is available."""
+    try:
+        import matplotlib  # noqa: F401
+        return styler.background_gradient(subset=subset, cmap=cmap)
+    except ImportError:
+        return styler
+
 def kpi_card(col, label, val, sub=""):
     col.markdown(
         f"<div class='kpi'><div class='kpi-lbl'>{label}</div>"
@@ -510,9 +518,10 @@ with r3b:
     tbl.columns = ["Segment","Customers","Recency (d)","Frequency","Monetary (£)"]
     tbl = tbl.set_index("Segment")
     st.dataframe(
-        tbl.style
-            .format({"Recency (d)":"{:.0f}","Frequency":"{:.1f}","Monetary (£)":"£{:,.0f}"})
-            .background_gradient(subset=["Monetary (£)"], cmap="Blues"),
+        safe_gradient(
+            tbl.style.format({"Recency (d)":"{:.0f}","Frequency":"{:.1f}","Monetary (£)":"£{:,.0f}"}),
+            subset=["Monetary (£)"],
+        ),
         use_container_width=True,
     )
 
@@ -722,10 +731,12 @@ else:
                 unsafe_allow_html=True)
     show_cols = ["InvoiceDate","InvoiceNo","Description","Quantity","UnitPrice","Revenue","Country"]
     st.dataframe(
-        cust_tx[show_cols].sort_values("InvoiceDate", ascending=False)
-        .reset_index(drop=True)
-        .style.format({"UnitPrice":"£{:.2f}","Revenue":"£{:.2f}"})
-        .background_gradient(subset=["Revenue"], cmap="Blues"),
+        safe_gradient(
+            cust_tx[show_cols].sort_values("InvoiceDate", ascending=False)
+            .reset_index(drop=True)
+            .style.format({"UnitPrice":"£{:.2f}","Revenue":"£{:.2f}"}),
+            subset=["Revenue"],
+        ),
         use_container_width=True,
     )
 
